@@ -1,9 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/sitemap.xml",
+      "destination": "https://imagetech-server.onrender.com/sitemap.xml?domain=inkmixingroller.com"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
 }
+
 

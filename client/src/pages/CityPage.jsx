@@ -27,7 +27,21 @@ const CityPage = () => {
     let isMounted = true;
     window.scrollTo(0, 0);
 
+
+    // Guard: Prevent file requests (like .xml, .txt) from being treated as location slugs
+    if (!locationSlug || locationSlug.includes('.') || locationSlug === 'robots' || locationSlug === 'sitemap') {
+      setState({
+        slug: locationSlug,
+        data: null,
+        loading: false,
+        notFound: true,
+        apiError: false,
+      });
+      return;
+    }
+
     fetchLocation(locationSlug)
+
       .then((data) => {
         if (!isMounted) return;
         if (!data || !data.isActive) {

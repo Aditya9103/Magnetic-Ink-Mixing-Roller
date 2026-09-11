@@ -169,6 +169,29 @@ const AdminDashboard = () => {
             />
           </div>
 
+          {/* Quick Action Banner */}
+          <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-2xl p-6 text-white mb-8 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">Programmatic SEO Pages</span>
+              </div>
+              <h3 className="text-lg font-extrabold text-white">Location & City Management</h3>
+              <p className="text-xs text-blue-200 max-w-xl leading-relaxed">
+                Easily add new cities or toggle existing distribution locations. Any city added here is immediately live on the website and added to the dynamic sitemap without redeploying.
+              </p>
+            </div>
+            <a
+              href="/admin/locations"
+              className="inline-flex items-center gap-2 bg-white text-blue-900 hover:bg-blue-50 px-5 py-2.5 rounded-xl font-bold text-sm shrink-0 shadow transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add / Manage Cities
+            </a>
+          </div>
+
           {/* Recent table */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -188,6 +211,7 @@ const AdminDashboard = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 text-left text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      <th className="px-6 py-3">Website</th>
                       <th className="px-6 py-3">Name</th>
                       <th className="px-6 py-3">Type</th>
                       <th className="px-6 py-3">Email</th>
@@ -201,6 +225,11 @@ const AdminDashboard = () => {
                         key={s._id}
                         className="hover:bg-slate-50/60 transition-colors"
                       >
+                        <td className="px-6 py-3.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 font-mono">
+                            {s.sourceWebsite || "inkmixingroller.com"}
+                          </span>
+                        </td>
                         <td className="px-6 py-3.5 font-semibold text-slate-900">
                           {s.fullName}
                         </td>
@@ -235,6 +264,7 @@ const AdminDashboard = () => {
                     ))}
                   </tbody>
                 </table>
+
               </div>
             )}
           </div>

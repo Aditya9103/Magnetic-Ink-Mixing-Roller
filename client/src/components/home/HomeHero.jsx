@@ -1,6 +1,7 @@
 import React from "react";
 
-const HomeHero = () => {
+const HomeHero = ({ locationData }) => {
+  const locName = locationData ? locationData.name : "India";
   return (
     <div className="relative bg-gradient-to-r from-blue-50 to-white overflow-hidden pt-8 pb-16 md:pt-12 md:pb-24">
       {/* Background decoration */}
@@ -22,13 +23,13 @@ const HomeHero = () => {
             <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-gray-900 leading-tight">
               Best <span className="text-blue-600">Magnetic Ink Mixing Roller</span> <br />
               <span className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl text-gray-900 font-bold">
-                Manufacturer in India
+                Manufacturer in {locName}
               </span>
             </h1>
 
             <p className="text-lg text-gray-900 max-w-xl">
               ImageTech Industries is widely recognized for manufacturing the best
-              Magnetic Ink Mixing Rollers in Delhi and across India. We offer premium
+              Magnetic Ink Mixing Rollers in {locationData ? `${locName} and across India` : 'Delhi and across India'}. We offer premium
               rollers that ensure uniform ink mixing and consistent print quality for
               gravure and flexographic printing applications.
             </p>
@@ -202,9 +203,9 @@ const HomeHero = () => {
           {/* Right Container for Image and Badges */}
           <div className="relative mt-12 lg:mt-0 flex justify-center items-center h-full min-h-[300px] lg:min-h-full">
             <img
-              src="heroimage.webp"
+              src="/heroimage.webp"
               alt="Magnetic Ink Mixing Roller Device"
-              fetchpriority="high"
+              fetchPriority="high"
               loading="eager"
               decoding="sync"
               className="relative z-10 w-full max-w-2xl scale-[1.1] translate-x-0 md:-translate-x-8 lg:-translate-x-12 -translate-y-24 object-contain drop-shadow-2xl rounded-2xl"

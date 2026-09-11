@@ -24,7 +24,7 @@ export default function SEO({
   noindex = false,
 }) {
   const location = useLocation();
-  const fullTitle = title === name ? title : `${title} | ${name}`;
+  const fullTitle = title.includes(name) ? title : `${title} | ${name}`;
 
   // Strip trailing slash (except root) so "/foo" and "/foo/" don't produce
   // two different canonical URLs for the same page.
@@ -33,6 +33,9 @@ export default function SEO({
 
   const schemaList = Array.isArray(schema) ? schema : schema ? [schema] : [];
   const keywordContent = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+  const robotsContent = noindex
+    ? 'noindex, nofollow'
+    : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 
   return (
     <Helmet>
@@ -40,7 +43,8 @@ export default function SEO({
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
       {keywordContent && <meta name="keywords" content={keywordContent} />}
-      <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
+      <meta name="author" content={name} />
+      <meta name="robots" content={robotsContent} />
       <link rel="canonical" href={currentUrl} />
 
       {/* Open Graph */}

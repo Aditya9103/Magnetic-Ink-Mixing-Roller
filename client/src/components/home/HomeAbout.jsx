@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-const HomeAbout = () => {
+const HomeAbout = ({ locationData }) => {
+  const locName = locationData ? locationData.name : "India";
   return (
     <section className="py-8 lg:py-12 pb-24 lg:pb-32 bg-gray-50 border-t border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -75,16 +76,18 @@ const HomeAbout = () => {
             <h4 className="text-blue-600 font-bold tracking-wider text-sm uppercase mb-2">
               About ImageTech Industries
             </h4>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight mb-6">
-              Your Trusted Magnetic Ink Mixing Roller Manufacturer in India
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6 leading-tight">
+              Your Trusted Magnetic Ink Mixing Roller Manufacturer in {locName}
             </h2>
-            <p className="text-lg text-gray-900 mb-8 leading-relaxed ">
-              Based in Delhi, ImageTech Industries is recognized for manufacturing
-              the best Magnetic Ink Mixing Rollers in India for the printing and packaging
-              sectors. With an unwavering focus on quality and innovation, we deliver
-              high-performance rollers that ensure uniform ink consistency, reduce pigment
-              settling, and provide long-term stable print quality for your business.
-            </p>
+            <div className="space-y-4 text-gray-600 text-lg">
+              <p className="text-lg text-gray-900 mb-8 leading-relaxed">
+                Based in Delhi, ImageTech Industries is recognized for manufacturing
+                the best Magnetic Ink Mixing Rollers in {locName} for the printing and packaging
+                sector. With an unwavering focus on quality and innovation, we deliver
+                high-performance rollers that ensure uniform ink consistency, reduce pigment
+                settling, and provide long-term stable print quality for your business.
+              </p>
+            </div>
             <Link
               to="/about"
               className="bg-blue-600 text-white px-8 py-4 pb-4 rounded-md font-semibold hover:bg-blue-700 transition-colors shadow-md shadow-blue-500/20 mb-12"

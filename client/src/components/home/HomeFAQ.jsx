@@ -54,7 +54,8 @@ const faqData = [
 
 import { SchemaInjector } from "../common/SEO";
 
-const HomeFAQ = () => {
+const HomeFAQ = ({ locationData }) => {
+  const locName = locationData ? locationData.name : "";
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -72,9 +73,9 @@ const HomeFAQ = () => {
     <>
       <SchemaInjector schema={faqSchema} />
       <FAQSection
-        title="Everything You Need To Know About Magnetic Ink Mixing Rollers"
+        title={`Everything You Need To Know About Magnetic Ink Mixing Rollers ${locName ? 'in ' + locName : ''}`}
         subtitle="Frequently Asked Questions"
-        description="Find answers to common questions about our Ink Mixing Rollers, printing applications, and technical specifications."
+        description={`Find answers to common questions about our Ink Mixing Rollers, printing applications, and technical specifications ${locName ? 'in ' + locName : ''}.`}
         faqs={faqData}
       />
     </>

@@ -27,7 +27,8 @@ const industries = [
   },
 ];
 
-const HomeIndustries = () => {
+const HomeIndustries = ({ locationData }) => {
+  const locName = locationData ? locationData.name : "";
   return (
     <section className="py-16 lg:py-24 bg-white border-t border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,7 +39,7 @@ const HomeIndustries = () => {
               Industries We Serve
             </h4>
             <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight mb-6">
-              Supporting Diverse Industries with Reliable Solutions
+              Supporting Diverse Industries with Reliable Solutions {locName ? `in ${locName}` : ''}
             </h2>
             <p className="text-lg text-gray-900 mb-10">
               Our Magnetic Ink Mixing Rollers are widely used across various industries to

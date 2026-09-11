@@ -7,11 +7,20 @@ import {
 } from "../../services/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 
+const ALL_WEBSITES = [
+  "inkmixingroller.com",
+  "stroboscopelight.com",
+  "barcoater.com",
+  "teflondam.com",
+  "doctorblade.co.in",
+];
+
 const SubmissionsTable = ({ type, title, subtitle }) => {
   const { admin } = useAdminAuth();
   const [submissions, setSubmissions] = useState([]);
   const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState("all");
+  const [websiteFilter, setWebsiteFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -20,6 +29,7 @@ const SubmissionsTable = ({ type, title, subtitle }) => {
       const params = { type, limit: 50 };
       if (filter === "unread") params.isRead = false;
       if (filter === "read") params.isRead = true;
+      if (websiteFilter !== "all") params.sourceWebsite = websiteFilter;
       const data = await fetchSubmissions(admin.token, params);
       setSubmissions(data.submissions || []);
       setTotal(data.total || 0);
@@ -28,7 +38,7 @@ const SubmissionsTable = ({ type, title, subtitle }) => {
     } finally {
       setLoading(false);
     }
-  }, [admin.token, type, filter]);
+  }, [admin.token, type, filter, websiteFilter]);
 
   useEffect(() => {
     load();
@@ -56,27 +66,54 @@ const SubmissionsTable = ({ type, title, subtitle }) => {
     <AdminLayout title={title} subtitle={subtitle}>
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-slate-100">
-          <span className="text-sm font-semibold text-slate-900">
-            {total} total submissions
-          </span>
-          <div className="flex items-center gap-2">
-            {["all", "unread", "read"].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                  filter === f
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-slate-900 border-slate-200 hover:border-blue-400 hover:text-blue-600"
-                }`}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-slate-900">
+              {total} total submissions
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Website Filter Dropdown */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Website:
+              </span>
+              <select
+                value={websiteFilter}
+                onChange={(e) => setWebsiteFilter(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
               >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
+                <option value="all">🌐 All Websites</option>
+                {ALL_WEBSITES.map((site) => (
+                  <option key={site} value={site}>
+                    {site}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Read/Unread Filter */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              {["all", "unread", "read"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    filter === f
+                      ? "bg-white text-blue-600 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
+
             <button
               onClick={load}
-              className="ml-2 p-1.5 rounded-lg border border-slate-200 text-slate-900 font-bold hover:text-blue-600 hover:border-blue-400 transition-colors"
+              title="Refresh submissions"
+              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-400 transition-colors bg-white shadow-xs"
             >
               <svg
                 className="w-4 h-4"
@@ -120,7 +157,7 @@ const SubmissionsTable = ({ type, title, subtitle }) => {
         ) : submissions.length === 0 ? (
           <div className="py-20 text-center">
             <svg
-              className="w-12 h-12 text-slate-900 mx-auto mb-3"
+              className="w-12 h-12 text-slate-400 mx-auto mb-3"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -132,40 +169,49 @@ const SubmissionsTable = ({ type, title, subtitle }) => {
                 d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
               />
             </svg>
-            <p className="text-slate-900 font-semibold text-sm">
+            <p className="text-slate-900 font-bold text-base">
               No submissions found.
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {websiteFilter !== "all" ? `No inquiries received for ${websiteFilter} yet.` : "New quote inquiries and contact messages will appear here."}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-left text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  <th className="px-6 py-3">Name / Company</th>
-                  <th className="px-6 py-3">Contact</th>
-                  <th className="px-6 py-3">Product / Industry</th>
-                  <th className="px-6 py-3">Message</th>
-                  <th className="px-6 py-3">Date</th>
-                  <th className="px-6 py-3">Actions</th>
+                <tr className="bg-slate-50 text-left text-xs font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100">
+                  <th className="px-6 py-3.5">Source Website</th>
+                  <th className="px-6 py-3.5">Name / Company</th>
+                  <th className="px-6 py-3.5">Contact</th>
+                  <th className="px-6 py-3.5">Product / Industry</th>
+                  <th className="px-6 py-3.5">Message</th>
+                  <th className="px-6 py-3.5">Date</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-100">
                 {submissions.map((s) => (
                   <tr
                     key={s._id}
-                    className={`hover:bg-slate-50/60 transition-colors ${!s.isRead ? "bg-blue-50/30" : ""}`}
+                    className={`hover:bg-slate-50/70 transition-colors ${!s.isRead ? "bg-blue-50/30" : ""}`}
                   >
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100 font-mono">
+                        🌐 {s.sourceWebsite || "inkmixingroller.com"}
+                      </span>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {!s.isRead && (
-                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Unread" />
                         )}
                         <div>
-                          <p className="font-bold text-slate-900 font-bold">
+                          <p className="font-extrabold text-slate-900">
                             {s.fullName}
                           </p>
-                          <p className="text-xs text-slate-900 font-bold font-medium">
-                            {s.companyName}
+                          <p className="text-xs text-slate-500 font-medium">
+                            {s.companyName || "Individual Inquiry"}
                           </p>
                         </div>
                       </div>
@@ -173,14 +219,15 @@ const SubmissionsTable = ({ type, title, subtitle }) => {
                     <td className="px-6 py-4">
                       <a
                         href={`mailto:${s.email}`}
-                        className="text-blue-600 hover:underline font-medium block"
+                        className="text-blue-600 hover:underline font-semibold block text-xs"
                       >
                         {s.email}
                       </a>
-                      <p className="text-slate-900 font-bold text-xs">
+                      <p className="text-slate-600 text-xs font-mono mt-0.5">
                         {s.phone}
                       </p>
                     </td>
+
                     <td className="px-6 py-4">
                       <p className="font-medium text-slate-900 font-bold">
                         {s.productInterest || "—"}

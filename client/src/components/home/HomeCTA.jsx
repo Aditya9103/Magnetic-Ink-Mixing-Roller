@@ -1,6 +1,7 @@
 import React from "react";
 
-const HomeCTA = () => {
+const HomeCTA = ({ locationData }) => {
+  const locName = locationData ? locationData.name : "Your Application";
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
       <section className="bg-slate-800 text-white relative overflow-hidden rounded-3xl shadow-2xl my-4">
@@ -14,7 +15,7 @@ const HomeCTA = () => {
               Let's Work Together
             </h4>
             <h2 className="text-3xl md:text-4xl font-extrabold leading-tight mb-4">
-              Need the Right Magnetic Ink Mixing Roller for Your Application?
+              Need the Right Magnetic Ink Mixing Roller in {locName}?
             </h2>
             <p className="text-white font-bold text-lg max-w-3xl">
               Get in touch with our experts for product recommendations, custom
@@ -51,7 +52,7 @@ const HomeCTA = () => {
         {/* Decorative Image Overlap */}
         <div className="absolute top-1/2 -translate-y-1/2 right-10 lg:right-40 w-1/2 max-w-[600px] opacity-10 pointer-events-none z-10 mix-blend-screen scale-150">
           <img
-            src="heroimage.webp"
+            src="/heroimage.webp"
             alt="Magnetic Ink Mixing Roller"
             className="w-full h-auto object-contain"
           />

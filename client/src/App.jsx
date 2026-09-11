@@ -1,5 +1,5 @@
 import {
-  BrowserRouter as Router,
+  BrowserRouter,
   Routes,
   Route,
   Navigate,
@@ -12,6 +12,10 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsConditions from "./pages/TermsConditions";
 import ShippingPolicy from "./pages/ShippingPolicy";
 import ProductDetail from "./pages/ProductDetail";
+import CityPage from "./pages/CityPage";
+import CityProductPage from "./pages/CityProductPage";
+import Sitemap from "./pages/Sitemap";
+import NotFound from "./components/common/NotFound";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import QuoteModal from "./components/common/QuoteModal";
@@ -22,6 +26,7 @@ import AdminProtectedRoute from "./components/admin/AdminProtectedRoute";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import { AdminQuotes, AdminContacts } from "./pages/admin/AdminSubmissions";
+import AdminLocations from "./pages/admin/AdminLocations";
 
 // Layout wrapper for public pages (includes Navbar + Footer)
 const PublicLayout = ({ children }) => (
@@ -36,14 +41,22 @@ const PublicLayout = ({ children }) => (
 function App() {
   return (
     <AdminAuthProvider>
-      <Router>
+      <BrowserRouter>
         <Routes>
-          {/* ── Public routes ── */}
+          {/* ── Public Static Pages ── */}
           <Route
             path="/"
             element={
               <PublicLayout>
                 <Home />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/sitemap"
+            element={
+              <PublicLayout>
+                <Sitemap />
               </PublicLayout>
             }
           />
@@ -104,7 +117,27 @@ function App() {
             }
           />
 
-          {/* ── Admin routes ── */}
+          {/* ── Dynamic Programmatic City + Product Route ── */}
+          <Route
+            path="/:locationSlug/:productSlug"
+            element={
+              <PublicLayout>
+                <CityProductPage />
+              </PublicLayout>
+            }
+          />
+
+          {/* ── Dynamic Programmatic City Route ── */}
+          <Route
+            path="/:locationSlug"
+            element={
+              <PublicLayout>
+                <CityPage />
+              </PublicLayout>
+            }
+          />
+
+          {/* ── Admin Routes ── */}
           <Route
             path="/admin"
             element={<Navigate to="/admin/login" replace />}
@@ -115,6 +148,14 @@ function App() {
             element={
               <AdminProtectedRoute>
                 <AdminDashboard />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/locations"
+            element={
+              <AdminProtectedRoute>
+                <AdminLocations />
               </AdminProtectedRoute>
             }
           />
@@ -134,8 +175,18 @@ function App() {
               </AdminProtectedRoute>
             }
           />
+
+          {/* ── 404 Catch-All ── */}
+          <Route
+            path="*"
+            element={
+              <PublicLayout>
+                <NotFound />
+              </PublicLayout>
+            }
+          />
         </Routes>
-      </Router>
+      </BrowserRouter>
     </AdminAuthProvider>
   );
 }

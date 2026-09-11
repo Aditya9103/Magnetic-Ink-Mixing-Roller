@@ -3,16 +3,18 @@ import { Link } from "react-router-dom";
 
 import { productsData } from "../../data/products";
 
-const products = productsData.map(p => ({
-  id: p.id,
-  title: p.name,
-  description: p.shortDescription,
-  image: p.images[0],
-  link: `/products/${p.slug}`,
-  externalLink: p.externalLink,
-}));
+const HomeProducts = ({ locationData }) => {
+  const locName = locationData ? locationData.name : "";
+  const locSlug = locationData ? locationData.slug : "";
 
-const HomeProducts = () => {
+  const products = productsData.map(p => ({
+    id: p.id,
+    title: p.name,
+    description: p.shortDescription,
+    image: p.images[0],
+    link: locSlug ? `/${locSlug}/${p.slug}` : `/products/${p.slug}`,
+    externalLink: p.externalLink,
+  }));
   return (
     <section className="py-16 lg:py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,7 +25,7 @@ const HomeProducts = () => {
               Our Products
             </h4>
             <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight">
-              Advanced Ink Mixing Solutions
+              Advanced Ink Mixing Solutions {locName ? `in ${locName}` : ''}
             </h2>
             <p className="mt-4 text-lg text-gray-900 max-w-2xl">
               A wide range of high-performance Magnetic Ink Mixing Rollers designed to keep printing ink properly mixed and ensure consistent print quality in your presses.

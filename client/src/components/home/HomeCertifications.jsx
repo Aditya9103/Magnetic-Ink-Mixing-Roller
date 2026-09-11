@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-const HomeCertifications = () => {
+const HomeCertifications = ({ locationData }) => {
+  const locName = locationData ? locationData.name : "";
   return (
     <section className="relative bg-white overflow-hidden">
       {/* Background Split */}
@@ -155,10 +156,10 @@ const HomeCertifications = () => {
                 </div>
                 <div className="ml-4">
                   <h4 className="font-bold text-gray-900 text-sm">
-                    Global Customer Trust
+                    {locName ? `Customer Trust in ${locName} & Worldwide` : 'Global Customer Trust'}
                   </h4>
                   <p className="text-xs text-gray-900 mt-1">
-                    Preferred by printing companies worldwide
+                    {locName ? `Preferred by printing companies in ${locName} and worldwide` : 'Preferred by printing companies worldwide'}
                   </p>
                 </div>
               </div>

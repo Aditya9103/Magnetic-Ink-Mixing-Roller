@@ -123,3 +123,42 @@ Even without a rope, the smooth exterior surface makes cleaning the roller betwe
     metaDescription: "WIPEX Rope-Free Magnetic Ink Mixing Roller keeps printing ink properly mixed inside the ink tray, reducing pigment settling for consistent printing."
   }
 ];
+
+/**
+ * Interpolate location variables ({city}, {state}, {location}) into any text string
+ */
+export const interpolateLocation = (text, location) => {
+  if (!text || typeof text !== "string" || !location) return text || "";
+  const city = location.name || "";
+  const state = location.state || "";
+  const locStr = city && state ? `${city}, ${state}` : city || state;
+  return text
+    .replace(/\{city\}/gi, city)
+    .replace(/\{state\}/gi, state)
+    .replace(/\{location\}/gi, locStr);
+};
+
+/**
+ * Returns product with identical content, adding location context variables
+ * @param {Object} product - Base product object from productsData
+ * @param {Object} location - Location object { name, state, slug }
+ * @returns {Object} Product object with location variables
+ */
+export const getLocalizedProduct = (product, location) => {
+  if (!product) return null;
+  if (!location) return product;
+
+  const cityName = location.name || "";
+  const stateName = location.state || "";
+  const locationLabel = cityName && stateName ? `${cityName}, ${stateName}` : cityName;
+
+  return {
+    ...product,
+    cityName,
+    stateName,
+    locationLabel,
+    titleWithCity: `${product.name} in ${cityName}`,
+    metaTitle: `${product.name} in ${locationLabel} | WIPEX`,
+    metaDescription: `${product.shortDescription} Available with delivery in ${locationLabel}.`,
+  };
+};

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
-import { fetchStats, fetchSubmissions } from "../../services/api";
+import { useAdminStats, useAdminSubmissions } from "../../services/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 
 const StatCard = ({
@@ -29,31 +29,16 @@ const StatCard = ({
 
 const AdminDashboard = () => {
   const { admin } = useAdminAuth();
-  const [stats, setStats] = useState(null);
-  const [recent, setRecent] = useState([]);
-  const [loadingStats, setLoadingStats] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [s, r] = await Promise.all([
-          fetchStats(admin.token),
-          fetchSubmissions(admin.token, { limit: 8 }),
-        ]);
-        setStats(s);
-        setRecent(r.submissions || []);
-      } catch {
-        // handled silently
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-    load();
-  }, [admin.token]);
+  const { data: stats, isLoading: loadingStats } = useAdminStats(admin?.token);
+  const { data: recentData, isLoading: loadingRecent } = useAdminSubmissions(admin?.token, { limit: 8 });
+
+  const recent = recentData?.submissions || [];
+  const isLoading = loadingStats || loadingRecent;
 
   return (
     <AdminLayout title="Dashboard" subtitle="Overview of all form submissions">
-      {loadingStats ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <svg
             className="w-8 h-8 text-blue-600 animate-spin"

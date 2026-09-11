@@ -1,110 +1,100 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchLocation } from "../services/api";
+import { useLocation as useLocationQuery } from "../services/api";
 import { productsData } from "../data/products";
 import SEO from "../components/common/SEO";
 import NotFound from "../components/common/NotFound";
 import FAQSection from "../components/common/FAQSection";
 import HomeCTA from "../components/home/HomeCTA";
 
+const CityProductPageSkeleton = () => (
+  <div className="bg-slate-50 min-h-screen py-6 lg:py-10 animate-pulse">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Breadcrumbs Skeleton */}
+      <div className="flex items-center gap-2 mb-8">
+        <div className="h-4 w-16 bg-slate-200 rounded"></div>
+        <div className="h-4 w-4 bg-slate-200 rounded"></div>
+        <div className="h-4 w-24 bg-slate-200 rounded"></div>
+        <div className="h-4 w-4 bg-slate-200 rounded"></div>
+        <div className="h-4 w-36 bg-slate-200 rounded"></div>
+      </div>
+
+      {/* Main Product Card Skeleton */}
+      <div className="bg-white rounded-3xl p-8 lg:p-12 shadow-sm border border-slate-100 flex flex-col lg:flex-row gap-12 mb-12">
+        {/* Left: Image Skeleton */}
+        <div className="w-full lg:w-1/2 space-y-4">
+          <div className="aspect-square bg-slate-100 rounded-2xl border border-slate-100"></div>
+          <div className="grid grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="aspect-square bg-slate-100 rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: Info Skeleton */}
+        <div className="w-full lg:w-1/2 space-y-5">
+          <div className="h-6 w-48 bg-blue-100 rounded-full"></div>
+          <div className="h-10 w-4/5 bg-slate-200 rounded-xl"></div>
+          <div className="h-5 w-3/5 bg-slate-200 rounded-lg"></div>
+          <div className="space-y-2 pt-2">
+            <div className="h-4 w-full bg-slate-100 rounded"></div>
+            <div className="h-4 w-full bg-slate-100 rounded"></div>
+            <div className="h-4 w-3/4 bg-slate-100 rounded"></div>
+          </div>
+          <div className="space-y-3 pt-2">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-emerald-100"></div>
+                <div className="h-4 w-2/3 bg-slate-100 rounded"></div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="h-14 w-full sm:w-56 bg-blue-600/30 rounded-full"></div>
+            <div className="h-14 w-full sm:w-56 bg-emerald-600/30 rounded-full"></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Specs Grid Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {[1, 2, 3].map((n) => (
+          <div key={n} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+            <div className="h-6 w-40 bg-slate-200 rounded-lg"></div>
+            <div className="h-4 w-full bg-slate-100 rounded"></div>
+            <div className="h-4 w-5/6 bg-slate-100 rounded"></div>
+            <div className="h-4 w-2/3 bg-slate-100 rounded"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const isInvalidSlug = (slug) =>
+  !slug || slug.includes(".") || slug === "robots" || slug === "sitemap";
+
 const CityProductPage = () => {
   const { locationSlug, productSlug } = useParams();
-
-  const [state, setState] = useState({
-    locationSlug: null,
-    productSlug: null,
-    location: null,
-    product: null,
-    loading: true,
-    notFound: false,
-    apiError: false,
-  });
   const [activeImage, setActiveImage] = useState(0);
 
   useEffect(() => {
-    let isMounted = true;
     window.scrollTo(0, 0);
     setActiveImage(0);
-
-    // 1. Resolve product template from client data
-    const baseProduct = productsData.find((p) => p.slug === productSlug);
-    if (!baseProduct) {
-      setState({
-        locationSlug,
-        productSlug,
-        location: null,
-        product: null,
-        loading: false,
-        notFound: true,
-        apiError: false,
-      });
-      return;
-    }
-
-    // 2. Fetch active location dynamically from API
-    fetchLocation(locationSlug)
-      .then((location) => {
-        if (!isMounted) return;
-
-        if (!location || !location.isActive) {
-          setState({
-            locationSlug,
-            productSlug,
-            location: null,
-            product: null,
-            loading: false,
-            notFound: true,
-            apiError: false,
-          });
-          return;
-        }
-
-        setState({
-          locationSlug,
-          productSlug,
-          location,
-          product: baseProduct,
-          loading: false,
-          notFound: false,
-          apiError: false,
-        });
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        console.error("Error loading city+product page:", err);
-        setState({
-          locationSlug,
-          productSlug,
-          location: null,
-          product: null,
-          loading: false,
-          notFound: err?.status === 404,
-          apiError: err?.status !== 404,
-        });
-      });
-
-    return () => {
-      isMounted = false;
-    };
   }, [locationSlug, productSlug]);
 
-  const isLoading =
-    state.loading ||
-    state.locationSlug !== locationSlug ||
-    state.productSlug !== productSlug;
+  const baseProduct = productsData.find((p) => p.slug === productSlug);
+  const invalid = isInvalidSlug(locationSlug) || !baseProduct;
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-        <p className="text-gray-500 text-sm font-medium animate-pulse">
-          Loading product details for {locationSlug}...
-        </p>
-      </div>
-    );
-  }
+  const {
+    data: location,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useLocationQuery(locationSlug, { enabled: !invalid });
 
-  if (state.notFound) {
+  if (invalid || (isError && error?.status === 404)) {
     return (
       <NotFound
         title="Product or Location Not Found"
@@ -113,7 +103,11 @@ const CityProductPage = () => {
     );
   }
 
-  if (state.apiError || !state.location || !state.product) {
+  if (isLoading) {
+    return <CityProductPageSkeleton />;
+  }
+
+  if (isError) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center px-4 py-16 text-center">
         <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-4">
@@ -121,12 +115,10 @@ const CityProductPage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to load page</h2>
-        <p className="text-gray-600 mb-6 max-w-md">
-          There was a problem connecting to the server. Please try again.
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to load product details</h2>
+        <p className="text-gray-600 mb-6 max-w-md">There was a temporary problem communicating with our server. Please try again.</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => refetch()}
           className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
         >
           Try Again
@@ -135,7 +127,16 @@ const CityProductPage = () => {
     );
   }
 
-  const { location, product } = state;
+  if (!location || !location.isActive) {
+    return (
+      <NotFound
+        title="Product or Location Not Found"
+        message={`We could not find the requested combination of "${locationSlug}" and "${productSlug}". Please verify the location and product or browse our sitemap.`}
+      />
+    );
+  }
+
+  const product = baseProduct;
 
   const images =
     product.images && product.images.length > 0

@@ -1,16 +1,22 @@
-import React, { useState, useRef } from "react";
-import { submitContact } from "../../services/api";
+import React, { useRef } from "react";
+import { useSubmitContact } from "../../services/api";
 
 const ContactForm = () => {
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
-  const [errorMsg, setErrorMsg] = useState("");
   const formRef = useRef(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus("loading");
-    setErrorMsg("");
+  const mutation = useSubmitContact();
 
+  const status = mutation.isPending
+    ? "loading"
+    : mutation.isSuccess
+    ? "success"
+    : mutation.isError
+    ? "error"
+    : "idle";
+  const errorMsg = mutation.error?.message || "";
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
     const formData = new FormData(e.target);
     const payload = {
       fullName: formData.get("fullName"),
@@ -22,14 +28,11 @@ const ContactForm = () => {
       message: formData.get("message"),
     };
 
-    try {
-      await submitContact(payload);
-      setStatus("success");
-      formRef.current?.reset();
-    } catch (err) {
-      setErrorMsg(err.message);
-      setStatus("error");
-    }
+    mutation.mutate(payload, {
+      onSuccess: () => {
+        formRef.current?.reset();
+      },
+    });
   };
 
   return (

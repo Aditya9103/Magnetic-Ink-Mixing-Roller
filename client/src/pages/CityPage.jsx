@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { fetchLocation } from "../services/api";
+import { useLocation as useLocationQuery } from "../services/api";
 import SEO from "../components/common/SEO";
 import NotFound from "../components/common/NotFound";
 import HomeHero from "../components/home/HomeHero";
@@ -12,95 +12,75 @@ import HomeWhyChoose from "../components/home/HomeWhyChoose";
 import HomeFAQ from "../components/home/HomeFAQ";
 import HomeCTA from "../components/home/HomeCTA";
 
+const CityPageSkeleton = () => (
+  <div className="w-full animate-pulse">
+    {/* Hero Skeleton */}
+    <div className="bg-gradient-to-r from-blue-50/70 to-white py-12 md:py-20 px-4 sm:px-6 lg:px-8 border-b border-gray-100">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        <div className="lg:col-span-7 space-y-6">
+          <div className="h-6 w-48 bg-blue-100/80 rounded-full"></div>
+          <div className="space-y-3">
+            <div className="h-10 sm:h-12 w-3/4 bg-slate-200 rounded-2xl"></div>
+            <div className="h-8 sm:h-10 w-1/2 bg-blue-200/70 rounded-2xl"></div>
+          </div>
+          <div className="space-y-2 pt-2">
+            <div className="h-4 w-full bg-slate-200 rounded-md"></div>
+            <div className="h-4 w-5/6 bg-slate-200 rounded-md"></div>
+            <div className="h-4 w-2/3 bg-slate-200 rounded-md"></div>
+          </div>
+          <div className="flex flex-wrap gap-4 pt-4">
+            <div className="h-12 w-44 bg-blue-600/30 rounded-full"></div>
+            <div className="h-12 w-44 bg-slate-200 rounded-full"></div>
+          </div>
+        </div>
+        <div className="lg:col-span-5 flex justify-center">
+          <div className="w-full max-w-md aspect-square bg-slate-100 border border-slate-200/60 rounded-3xl"></div>
+        </div>
+      </div>
+    </div>
+
+    {/* Products Section Skeleton */}
+    <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+      <div className="space-y-3 mb-10 text-center max-w-md mx-auto">
+        <div className="h-4 w-28 bg-blue-100 mx-auto rounded-full"></div>
+        <div className="h-8 w-64 bg-slate-200 mx-auto rounded-xl"></div>
+        <div className="h-4 w-80 bg-slate-100 mx-auto rounded-md"></div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-white rounded-3xl border border-slate-100 p-8 shadow-sm space-y-6">
+            <div className="aspect-video bg-slate-100 rounded-2xl"></div>
+            <div className="h-6 w-3/4 bg-slate-200 rounded-lg"></div>
+            <div className="h-4 w-full bg-slate-100 rounded-md"></div>
+            <div className="h-10 w-full bg-slate-100 rounded-xl"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const isInvalidSlug = (slug) =>
+  !slug || slug.includes(".") || slug === "robots" || slug === "sitemap";
+
 const CityPage = () => {
   const { locationSlug } = useParams();
 
-  const [state, setState] = useState({
-    slug: null,
-    data: null,
-    loading: true,
-    notFound: false,
-    apiError: false,
-  });
-
   useEffect(() => {
-    let isMounted = true;
     window.scrollTo(0, 0);
-
-
-    // Guard: Prevent file requests (like .xml, .txt) from being treated as location slugs
-    if (!locationSlug || locationSlug.includes('.') || locationSlug === 'robots' || locationSlug === 'sitemap') {
-      setState({
-        slug: locationSlug,
-        data: null,
-        loading: false,
-        notFound: true,
-        apiError: false,
-      });
-      return;
-    }
-
-    fetchLocation(locationSlug)
-
-      .then((data) => {
-        if (!isMounted) return;
-        if (!data || !data.isActive) {
-          setState({
-            slug: locationSlug,
-            data: null,
-            loading: false,
-            notFound: true,
-            apiError: false,
-          });
-        } else {
-          setState({
-            slug: locationSlug,
-            data,
-            loading: false,
-            notFound: false,
-            apiError: false,
-          });
-        }
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        if (err.status === 404) {
-          setState({
-            slug: locationSlug,
-            data: null,
-            loading: false,
-            notFound: true,
-            apiError: false,
-          });
-        } else {
-          console.error("API error fetching location:", err);
-          setState({
-            slug: locationSlug,
-            data: null,
-            loading: false,
-            notFound: false,
-            apiError: true,
-          });
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
   }, [locationSlug]);
 
-  const isLoading = state.loading || state.slug !== locationSlug;
+  const invalid = isInvalidSlug(locationSlug);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-        <p className="text-gray-500 text-sm font-medium animate-pulse">Loading location details...</p>
-      </div>
-    );
-  }
+  const {
+    data: locationData,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useLocationQuery(locationSlug, { enabled: !invalid });
 
-  if (state.notFound) {
+  if (invalid || (isError && error?.status === 404)) {
     return (
       <NotFound
         title="Location Not Found"
@@ -109,7 +89,11 @@ const CityPage = () => {
     );
   }
 
-  if (state.apiError || !state.data) {
+  if (isLoading) {
+    return <CityPageSkeleton />;
+  }
+
+  if (isError) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center px-4 py-16 text-center">
         <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-4">
@@ -120,7 +104,7 @@ const CityPage = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to load location details</h2>
         <p className="text-gray-600 mb-6 max-w-md">There was a temporary problem communicating with our server. Please try again.</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => refetch()}
           className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
         >
           Try Again
@@ -129,7 +113,14 @@ const CityPage = () => {
     );
   }
 
-  const locationData = state.data;
+  if (!locationData || !locationData.isActive) {
+    return (
+      <NotFound
+        title="Location Not Found"
+        message={`We could not find any active location matching "${locationSlug}". Please check our sitemap to view all supported locations.`}
+      />
+    );
+  }
   const locName = locationData.name;
   const locState = locationData.state;
 

@@ -1,4 +1,10 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. CORE HTTP FETCH FUNCTIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 /**
  * Fetch a single location by slug
@@ -107,7 +113,6 @@ export const adminDeleteLocation = async (token, id) => {
   }
   return data;
 };
-
 
 /**
  * Submit a "Get a Quote" form request
@@ -221,7 +226,6 @@ export const fetchSubmissions = async (token, params = {}) => {
   return res.json();
 };
 
-
 /**
  * Admin: Fetch dashboard stats
  * @param {string} token
@@ -265,4 +269,212 @@ export const deleteSubmission = async (token, id) => {
   });
   if (!res.ok) throw new Error("Failed to delete submission.");
   return res.json();
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. TANSTACK QUERY KEYS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+export const QUERY_KEYS = {
+  locations: ["locations"],
+  location: (slug) => ["location", slug],
+  adminStats: ["admin", "stats"],
+  adminSubmissions: (params) => ["admin", "submissions", params],
+  adminLocations: ["admin", "locations"],
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. TANSTACK CUSTOM HOOKS (SINGLE PLACE FOR ALL API CALLS)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Hook: Fetch and cache all active locations, and automatically seed individual city caches */
+export const useLocations = (options = {}) => {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: QUERY_KEYS.locations,
+    queryFn: async () => {
+      const data = await fetchLocations();
+      if (Array.isArray(data)) {
+        // Automatically seed query cache for all individual cities for 0ms instant loads
+        data.forEach((loc) => {
+          if (loc && loc.slug) {
+            queryClient.setQueryData(QUERY_KEYS.location(loc.slug), loc);
+          }
+        });
+      }
+      return data;
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes fresh
+    ...options,
+  });
+};
+
+/** Hook: Fetch and cache a single location with instant initialData derivation from locations cache */
+export const useLocation = (slug, options = {}) => {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: QUERY_KEYS.location(slug),
+    queryFn: () => fetchLocation(slug),
+    initialData: () => {
+      if (!slug) return undefined;
+      // 1. Direct hit from single location cache
+      const cachedDirect = queryClient.getQueryData(QUERY_KEYS.location(slug));
+      if (cachedDirect) return cachedDirect;
+
+      // 2. Derive from all-locations array for 0ms transition
+      const allLocations = queryClient.getQueryData(QUERY_KEYS.locations);
+      if (Array.isArray(allLocations)) {
+        return allLocations.find((loc) => loc.slug === slug);
+      }
+      return undefined;
+    },
+    initialDataUpdatedAt: () => {
+      return (
+        queryClient.getQueryState(QUERY_KEYS.location(slug))?.dataUpdatedAt ||
+        queryClient.getQueryState(QUERY_KEYS.locations)?.dataUpdatedAt
+      );
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes fresh
+    ...options,
+  });
+};
+
+/** Hook: Prefetch a single location on hover */
+export const usePrefetchLocation = () => {
+  const queryClient = useQueryClient();
+  return (slug) => {
+    if (!slug) return;
+    queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.location(slug),
+      queryFn: () => fetchLocation(slug),
+    });
+  };
+};
+
+/** Hook: Prefetch all locations on hover */
+export const usePrefetchLocations = () => {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.locations,
+      queryFn: fetchLocations,
+    });
+  };
+};
+
+/** Hook: Submit Get a Quote form */
+export const useSubmitQuote = (options = {}) => {
+  return useMutation({
+    mutationFn: submitQuote,
+    ...options,
+  });
+};
+
+/** Hook: Submit Contact Us form */
+export const useSubmitContact = (options = {}) => {
+  return useMutation({
+    mutationFn: submitContact,
+    ...options,
+  });
+};
+
+/** Hook: Admin dashboard statistics */
+export const useAdminStats = (token, options = {}) => {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.adminStats, token],
+    queryFn: () => fetchStats(token),
+    enabled: !!token,
+    ...options,
+  });
+};
+
+/** Hook: Admin submissions list */
+export const useAdminSubmissions = (token, params = {}, options = {}) => {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.adminSubmissions(params), token],
+    queryFn: () => fetchSubmissions(token, params),
+    enabled: !!token,
+    ...options,
+  });
+};
+
+/** Hook: Admin mark submission read */
+export const useMarkSubmissionRead = (token, options = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isRead }) => markSubmissionRead(token, id, isRead),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "submissions"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.adminStats });
+    },
+    ...options,
+  });
+};
+
+/** Hook: Admin delete submission */
+export const useDeleteSubmission = (token, options = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => deleteSubmission(token, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "submissions"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.adminStats });
+    },
+    ...options,
+  });
+};
+
+/** Hook: Admin fetch all locations */
+export const useAdminLocations = (token, options = {}) => {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.adminLocations, token],
+    queryFn: () => adminFetchLocations(token),
+    enabled: !!token,
+    ...options,
+  });
+};
+
+/** Hook: Admin create location */
+export const useAdminCreateLocation = (token, options = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => adminCreateLocation(token, payload),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.locations });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.adminLocations });
+      if (res?.location?.slug) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.location(res.location.slug) });
+      }
+    },
+    ...options,
+  });
+};
+
+/** Hook: Admin update location */
+export const useAdminUpdateLocation = (token, options = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }) => adminUpdateLocation(token, id, payload),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.locations });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.adminLocations });
+      if (res?.location?.slug) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.location(res.location.slug) });
+      }
+    },
+    ...options,
+  });
+};
+
+/** Hook: Admin delete location */
+export const useAdminDeleteLocation = (token, options = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => adminDeleteLocation(token, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.locations });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.adminLocations });
+    },
+    ...options,
+  });
 };

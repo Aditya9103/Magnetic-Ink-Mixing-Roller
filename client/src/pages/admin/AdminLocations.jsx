@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "../../components/admin/AdminLayout";
 import {
-  adminFetchLocations,
-  adminCreateLocation,
-  adminUpdateLocation,
-  adminDeleteLocation,
+  useAdminLocations,
+  useAdminCreateLocation,
+  useAdminUpdateLocation,
+  useAdminDeleteLocation,
 } from "../../services/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 
@@ -86,8 +86,15 @@ const fetchCountriesNowCities = async (stateName) => {
 
 const AdminLocations = () => {
   const { admin } = useAdminAuth();
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: serverLocations = [], isLoading: loading } = useAdminLocations(admin?.token);
+  const [localLocations, setLocalLocations] = useState(null);
+  const locations = localLocations ?? serverLocations;
+
+  const createMutation = useAdminCreateLocation(admin?.token);
+  const updateMutation = useAdminUpdateLocation(admin?.token);
+  const deleteMutation = useAdminDeleteLocation(admin?.token);
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all"); // all, active, inactive
   const [page, setPage] = useState(1);
@@ -102,7 +109,6 @@ const AdminLocations = () => {
     slug: "",
     isActive: true,
   });
-  const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [successToast, setSuccessToast] = useState("");
 
@@ -130,24 +136,6 @@ const AdminLocations = () => {
       isMounted = false;
     };
   }, []);
-
-  const loadLocations = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await adminFetchLocations(admin.token);
-      if (Array.isArray(data)) {
-        setLocations(data);
-      }
-    } catch (err) {
-      console.error("Failed to load locations:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [admin.token]);
-
-  useEffect(() => {
-    loadLocations();
-  }, [loadLocations]);
 
   // Toast auto-hide
   useEffect(() => {
@@ -268,7 +256,7 @@ const AdminLocations = () => {
     setFormError("");
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setFormError("");
 
@@ -277,46 +265,62 @@ const AdminLocations = () => {
       return;
     }
 
-    setSaving(true);
-    try {
-      if (modalMode === "add") {
-        const res = await adminCreateLocation(admin.token, formData);
-        setLocations((prev) => [res.location, ...prev]);
-        setSuccessToast(`City "${res.location.name}" added successfully!`);
-      } else if (modalMode === "edit" && editingLoc) {
-        const res = await adminUpdateLocation(admin.token, editingLoc._id, formData);
-        setLocations((prev) =>
-          prev.map((l) => (l._id === editingLoc._id ? res.location : l))
-        );
-        setSuccessToast(`City "${res.location.name}" updated successfully!`);
-      }
-      closeModal();
-    } catch (err) {
-      setFormError(err.message || "Failed to save city. Check if slug already exists.");
-    } finally {
-      setSaving(false);
+    if (modalMode === "add") {
+      createMutation.mutate(formData, {
+        onSuccess: (res) => {
+          setLocalLocations((prev) => [res.location, ...(prev ?? serverLocations)]);
+          setSuccessToast(`City "${res.location.name}" added successfully!`);
+          closeModal();
+        },
+        onError: (err) => {
+          setFormError(err.message || "Failed to save city. Check if slug already exists.");
+        },
+      });
+    } else if (modalMode === "edit" && editingLoc) {
+      updateMutation.mutate(
+        { id: editingLoc._id, payload: formData },
+        {
+          onSuccess: (res) => {
+            setLocalLocations((prev) =>
+              (prev ?? serverLocations).map((l) =>
+                l._id === editingLoc._id ? res.location : l
+              )
+            );
+            setSuccessToast(`City "${res.location.name}" updated successfully!`);
+            closeModal();
+          },
+          onError: (err) => {
+            setFormError(err.message || "Failed to save city. Check if slug already exists.");
+          },
+        }
+      );
     }
   };
 
   // Quick toggle active
-  const handleToggleActive = async (loc) => {
-    try {
-      const updated = await adminUpdateLocation(admin.token, loc._id, {
-        isActive: !loc.isActive,
-      });
-      setLocations((prev) =>
-        prev.map((l) => (l._id === loc._id ? updated.location : l))
-      );
-      setSuccessToast(
-        `"${loc.name}" is now ${updated.location.isActive ? "Active" : "Inactive"}.`
-      );
-    } catch (err) {
-      alert("Failed to toggle status: " + err.message);
-    }
+  const handleToggleActive = (loc) => {
+    updateMutation.mutate(
+      { id: loc._id, payload: { isActive: !loc.isActive } },
+      {
+        onSuccess: (res) => {
+          setLocalLocations((prev) =>
+            (prev ?? serverLocations).map((l) =>
+              l._id === loc._id ? res.location : l
+            )
+          );
+          setSuccessToast(
+            `"${loc.name}" is now ${res.location.isActive ? "Active" : "Inactive"}.`
+          );
+        },
+        onError: (err) => {
+          alert("Failed to toggle status: " + err.message);
+        },
+      }
+    );
   };
 
   // Delete handler
-  const handleDelete = async (loc) => {
+  const handleDelete = (loc) => {
     if (
       !window.confirm(
         `Are you sure you want to delete "${loc.name}"? All programmatic pages for this city will become unavailable.`
@@ -325,13 +329,17 @@ const AdminLocations = () => {
       return;
     }
 
-    try {
-      await adminDeleteLocation(admin.token, loc._id);
-      setLocations((prev) => prev.filter((l) => l._id !== loc._id));
-      setSuccessToast(`City "${loc.name}" deleted.`);
-    } catch (err) {
-      alert("Failed to delete city: " + err.message);
-    }
+    deleteMutation.mutate(loc._id, {
+      onSuccess: () => {
+        setLocalLocations((prev) =>
+          (prev ?? serverLocations).filter((l) => l._id !== loc._id)
+        );
+        setSuccessToast(`City "${loc.name}" deleted.`);
+      },
+      onError: (err) => {
+        alert("Failed to delete city: " + err.message);
+      },
+    });
   };
 
   // Filter & search

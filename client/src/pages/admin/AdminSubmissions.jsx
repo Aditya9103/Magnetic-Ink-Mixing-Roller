@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
 import {
-  fetchSubmissions,
-  markSubmissionRead,
-  deleteSubmission,
+  useAdminSubmissions,
+  useMarkSubmissionRead,
+  useDeleteSubmission,
 } from "../../services/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 
@@ -17,49 +17,29 @@ const ALL_WEBSITES = [
 
 const SubmissionsTable = ({ type, title, subtitle }) => {
   const { admin } = useAdminAuth();
-  const [submissions, setSubmissions] = useState([]);
-  const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState("all");
   const [websiteFilter, setWebsiteFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { type, limit: 50 };
-      if (filter === "unread") params.isRead = false;
-      if (filter === "read") params.isRead = true;
-      if (websiteFilter !== "all") params.sourceWebsite = websiteFilter;
-      const data = await fetchSubmissions(admin.token, params);
-      setSubmissions(data.submissions || []);
-      setTotal(data.total || 0);
-    } catch {
-      // handled silently
-    } finally {
-      setLoading(false);
-    }
-  }, [admin.token, type, filter, websiteFilter]);
+  const queryParams = { type, limit: 50 };
+  if (filter === "unread") queryParams.isRead = false;
+  if (filter === "read") queryParams.isRead = true;
+  if (websiteFilter !== "all") queryParams.sourceWebsite = websiteFilter;
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { data, isLoading: loading } = useAdminSubmissions(admin?.token, queryParams);
 
-  const handleToggleRead = async (id, current) => {
-    try {
-      await markSubmissionRead(admin.token, id, !current);
-      setSubmissions((prev) =>
-        prev.map((s) => (s._id === id ? { ...s, isRead: !current } : s)),
-      );
-    } catch {}
+  const submissions = data?.submissions || [];
+  const total = data?.total || 0;
+
+  const toggleReadMutation = useMarkSubmissionRead(admin?.token);
+  const deleteMutation = useDeleteSubmission(admin?.token);
+
+  const handleToggleRead = (id, current) => {
+    toggleReadMutation.mutate({ id, isRead: !current });
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (!confirm("Delete this submission? This cannot be undone.")) return;
-    try {
-      await deleteSubmission(admin.token, id);
-      setSubmissions((prev) => prev.filter((s) => s._id !== id));
-      setTotal((t) => t - 1);
-    } catch {}
+    deleteMutation.mutate(id);
   };
 
   return (

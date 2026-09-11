@@ -1,33 +1,37 @@
 import React, { useState, useEffect, useRef } from "react";
-import { submitQuote } from "../../services/api";
+import { useSubmitQuote } from "../../services/api";
 
 const QuoteModal = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
-  const [errorMsg, setErrorMsg] = useState("");
   const formRef = useRef(null);
+
+  const mutation = useSubmitQuote();
+
+  const status = mutation.isPending
+    ? "loading"
+    : mutation.isSuccess
+    ? "success"
+    : mutation.isError
+    ? "error"
+    : "idle";
+  const errorMsg = mutation.error?.message || "";
 
   useEffect(() => {
     const handleOpen = () => {
       setIsOpen(true);
-      setStatus("idle");
-      setErrorMsg("");
+      mutation.reset();
     };
     window.addEventListener("open-quote-modal", handleOpen);
     return () => window.removeEventListener("open-quote-modal", handleOpen);
-  }, []);
+  }, [mutation]);
 
   const handleClose = () => {
     setIsOpen(false);
-    setStatus("idle");
-    setErrorMsg("");
+    mutation.reset();
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setStatus("loading");
-    setErrorMsg("");
-
     const formData = new FormData(e.target);
     const payload = {
       fullName: formData.get("fullName"),
@@ -39,14 +43,11 @@ const QuoteModal = () => {
       message: formData.get("message"),
     };
 
-    try {
-      await submitQuote(payload);
-      setStatus("success");
-      formRef.current?.reset();
-    } catch (err) {
-      setErrorMsg(err.message);
-      setStatus("error");
-    }
+    mutation.mutate(payload, {
+      onSuccess: () => {
+        formRef.current?.reset();
+      },
+    });
   };
 
   if (!isOpen) return null;

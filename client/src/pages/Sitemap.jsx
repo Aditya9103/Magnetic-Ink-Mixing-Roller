@@ -1,34 +1,43 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { fetchLocations } from "../services/api";
+import { useLocations, usePrefetchLocation } from "../services/api";
 import SEO from "../components/common/SEO";
 
+const SitemapSkeleton = () => (
+  <div className="space-y-12 animate-pulse" aria-hidden="true">
+    {[1, 2, 3].map((group) => (
+      <div key={group} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* State Header Skeleton */}
+        <div className="bg-gradient-to-r from-blue-50/50 to-gray-50 border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div className="h-6 w-36 bg-gray-200 rounded-md"></div>
+          <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
+        </div>
+
+        {/* Cities Grid Skeleton */}
+        <div className="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-11 bg-gray-100 border border-gray-200/70 rounded-xl px-4 flex items-center justify-between"
+            >
+              <div className="h-3.5 bg-gray-200 rounded w-20"></div>
+              <div className="w-3.5 h-3.5 bg-gray-200 rounded-full"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 const Sitemap = () => {
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const prefetchLocation = usePrefetchLocation();
 
   useEffect(() => {
-    let isMounted = true;
     window.scrollTo(0, 0);
-
-    fetchLocations()
-      .then((data) => {
-        if (!isMounted) return;
-        if (Array.isArray(data)) {
-          setLocations(data);
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching locations for sitemap:", error);
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  const { data: locations = [], isLoading } = useLocations();
 
   // Group locations by state
   const groupedLocations = locations.reduce((acc, loc) => {
@@ -59,11 +68,8 @@ const Sitemap = () => {
           </p>
         </div>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-48 space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-            <p className="text-gray-500 text-sm font-medium animate-pulse">Loading location directory...</p>
-          </div>
+        {isLoading ? (
+          <SitemapSkeleton />
         ) : (
           <div className="space-y-12">
             {sortedStates.length > 0 ? (
@@ -85,6 +91,7 @@ const Sitemap = () => {
                         <Link
                           key={loc._id || loc.slug}
                           to={`/${loc.slug}`}
+                          onMouseEnter={() => prefetchLocation(loc.slug)}
                           className="group flex items-center justify-between bg-white border border-gray-200 hover:border-blue-500 text-gray-700 hover:text-blue-700 font-medium py-3 px-4 rounded-xl transition-all duration-300 hover:shadow-md"
                         >
                           <span className="text-sm truncate mr-2">{loc.name}</span>

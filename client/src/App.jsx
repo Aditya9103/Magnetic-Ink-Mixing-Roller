@@ -1,9 +1,11 @@
+import React, { useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+import { usePrefetchLocations } from "./services/api";
 import Home from "./pages/Home";
 import AboutUs from "./pages/AboutUs";
 import Certifications from "./pages/Certifications";
@@ -39,6 +41,17 @@ const PublicLayout = ({ children }) => (
 );
 
 function App() {
+  const prefetchLocations = usePrefetchLocations();
+
+  useEffect(() => {
+    // Non-blocking background warmup for 0ms loads everywhere
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      window.requestIdleCallback(() => prefetchLocations());
+    } else {
+      setTimeout(() => prefetchLocations(), 300);
+    }
+  }, [prefetchLocations]);
+
   return (
     <AdminAuthProvider>
       <BrowserRouter>

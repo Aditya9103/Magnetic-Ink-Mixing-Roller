@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { usePrefetchLocations } from "../../services/api";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const prefetchLocations = usePrefetchLocations();
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -53,6 +55,11 @@ const Navbar = () => {
                 <Link
                   key={index}
                   to={link.href}
+                  onMouseEnter={() => {
+                    if (link.href === "/sitemap") {
+                      prefetchLocations();
+                    }
+                  }}
                   className={`flex items-center px-3 py-2 text-sm font-semibold rounded-md transition-colors ${isActive(link.href) ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-900 font-bold hover:text-blue-600"}`}
                 >
                   {link.name}

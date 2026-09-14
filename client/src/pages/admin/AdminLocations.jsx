@@ -6,8 +6,68 @@ import {
   useAdminCreateLocation,
   useAdminUpdateLocation,
   useAdminDeleteLocation,
+  usePrefetchLocation,
 } from "../../services/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+
+// Enterprise pagination helper with ellipses
+const getPageNumbers = (current, total) => {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, "...", total];
+  }
+  if (current >= total - 3) {
+    return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, "...", current - 1, current, current + 1, "...", total];
+};
+
+// Zero-delay structural skeleton table for cities
+const LocationTableSkeleton = () => (
+  <div className="overflow-x-auto animate-pulse">
+    <table className="w-full text-left text-sm">
+      <thead>
+        <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <th className="px-6 py-4">City Name</th>
+          <th className="px-6 py-4">State</th>
+          <th className="px-6 py-4">URL Slug</th>
+          <th className="px-6 py-4">Status</th>
+          <th className="px-6 py-4 text-center">Live Page</th>
+          <th className="px-6 py-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <tr key={i}>
+            <td className="px-6 py-4">
+              <div className="h-4 w-32 bg-slate-200 rounded-md"></div>
+            </td>
+            <td className="px-6 py-4">
+              <div className="h-5 w-24 bg-slate-100 rounded-md"></div>
+            </td>
+            <td className="px-6 py-4">
+              <div className="h-3.5 w-20 bg-slate-100 rounded-md"></div>
+            </td>
+            <td className="px-6 py-4">
+              <div className="h-6 w-16 bg-slate-100 rounded-full"></div>
+            </td>
+            <td className="px-6 py-4 text-center">
+              <div className="h-4 w-16 bg-slate-100 rounded-md mx-auto"></div>
+            </td>
+            <td className="px-6 py-4 text-right">
+              <div className="flex items-center justify-end gap-2">
+                <div className="w-7 h-7 bg-slate-100 rounded-lg"></div>
+                <div className="w-7 h-7 bg-slate-100 rounded-lg"></div>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
 // In-memory cache for CountriesNow API responses
 const countriesNowCache = {
@@ -86,9 +146,8 @@ const fetchCountriesNowCities = async (stateName) => {
 
 const AdminLocations = () => {
   const { admin } = useAdminAuth();
-  const { data: serverLocations = [], isLoading: loading } = useAdminLocations(admin?.token);
-  const [localLocations, setLocalLocations] = useState(null);
-  const locations = localLocations ?? serverLocations;
+  const { data: locations = [], isLoading: loading } = useAdminLocations(admin?.token);
+  const prefetchLocation = usePrefetchLocation();
 
   const createMutation = useAdminCreateLocation(admin?.token);
   const updateMutation = useAdminUpdateLocation(admin?.token);
@@ -97,8 +156,9 @@ const AdminLocations = () => {
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all"); // all, active, inactive
+  const [selectedState, setSelectedState] = useState("all");
   const [page, setPage] = useState(1);
-  const itemsPerPage = 20;
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Add / Edit modal state
   const [modalMode, setModalMode] = useState(null); // 'add' | 'edit' | null
@@ -268,8 +328,7 @@ const AdminLocations = () => {
     if (modalMode === "add") {
       createMutation.mutate(formData, {
         onSuccess: (res) => {
-          setLocalLocations((prev) => [res.location, ...(prev ?? serverLocations)]);
-          setSuccessToast(`City "${res.location.name}" added successfully!`);
+          setSuccessToast(`City "${res.location?.name || formData.name}" added successfully!`);
           closeModal();
         },
         onError: (err) => {
@@ -281,12 +340,7 @@ const AdminLocations = () => {
         { id: editingLoc._id, payload: formData },
         {
           onSuccess: (res) => {
-            setLocalLocations((prev) =>
-              (prev ?? serverLocations).map((l) =>
-                l._id === editingLoc._id ? res.location : l
-              )
-            );
-            setSuccessToast(`City "${res.location.name}" updated successfully!`);
+            setSuccessToast(`City "${res.location?.name || formData.name}" updated successfully!`);
             closeModal();
           },
           onError: (err) => {
@@ -297,19 +351,14 @@ const AdminLocations = () => {
     }
   };
 
-  // Quick toggle active
+  // Quick toggle active (TanStack onMutate provides 0ms instant UI update)
   const handleToggleActive = (loc) => {
     updateMutation.mutate(
       { id: loc._id, payload: { isActive: !loc.isActive } },
       {
         onSuccess: (res) => {
-          setLocalLocations((prev) =>
-            (prev ?? serverLocations).map((l) =>
-              l._id === loc._id ? res.location : l
-            )
-          );
           setSuccessToast(
-            `"${loc.name}" is now ${res.location.isActive ? "Active" : "Inactive"}.`
+            `"${loc.name}" is now ${res?.location?.isActive ?? !loc.isActive ? "Active" : "Inactive"}.`
           );
         },
         onError: (err) => {
@@ -319,7 +368,7 @@ const AdminLocations = () => {
     );
   };
 
-  // Delete handler
+  // Delete handler (TanStack onMutate provides 0ms instant row removal)
   const handleDelete = (loc) => {
     if (
       !window.confirm(
@@ -331,9 +380,6 @@ const AdminLocations = () => {
 
     deleteMutation.mutate(loc._id, {
       onSuccess: () => {
-        setLocalLocations((prev) =>
-          (prev ?? serverLocations).filter((l) => l._id !== loc._id)
-        );
         setSuccessToast(`City "${loc.name}" deleted.`);
       },
       onError: (err) => {
@@ -342,27 +388,36 @@ const AdminLocations = () => {
     });
   };
 
+  // Unique list of Indian states in current dataset for state filter dropdown
+  const uniqueStates = useMemo(() => {
+    const states = Array.from(new Set(locations.map((l) => l.state))).filter(Boolean);
+    return states.sort((a, b) => a.localeCompare(b));
+  }, [locations]);
+
   // Filter & search
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return locations.filter((loc) => {
       const matchesSearch =
-        loc.name.toLowerCase().includes(search.toLowerCase()) ||
-        loc.state.toLowerCase().includes(search.toLowerCase()) ||
-        loc.slug.toLowerCase().includes(search.toLowerCase());
+        !q ||
+        loc.name?.toLowerCase().includes(q) ||
+        loc.state?.toLowerCase().includes(q) ||
+        loc.slug?.toLowerCase().includes(q);
 
       if (!matchesSearch) return false;
-      if (filter === "active") return loc.isActive;
-      if (filter === "inactive") return !loc.isActive;
+      if (filter === "active" && !loc.isActive) return false;
+      if (filter === "inactive" && loc.isActive) return false;
+      if (selectedState !== "all" && loc.state !== selectedState) return false;
       return true;
     });
-  }, [locations, search, filter]);
+  }, [locations, search, filter, selectedState]);
 
   // Paginated records
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const paginated = useMemo(() => {
     const start = (page - 1) * itemsPerPage;
     return filtered.slice(start, start + itemsPerPage);
-  }, [filtered, page]);
+  }, [filtered, page, itemsPerPage]);
 
   return (
     <AdminLayout
@@ -413,9 +468,9 @@ const AdminLocations = () => {
       </div>
 
       {/* Action Bar & Controls */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Search bar */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Search bar with clear button */}
           <div className="relative flex-1 max-w-md">
             <input
               type="text"
@@ -425,7 +480,7 @@ const AdminLocations = () => {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
+              className="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
             />
             <svg
               className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"
@@ -440,10 +495,42 @@ const AdminLocations = () => {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setPage(1);
+                }}
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                title="Clear search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Filters & Add button */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* State filter dropdown */}
+            <select
+              value={selectedState}
+              onChange={(e) => {
+                setSelectedState(e.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="all">All States ({uniqueStates.length})</option>
+              {uniqueStates.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+
+            {/* Status pills */}
             <div className="flex items-center bg-slate-100 p-1 rounded-xl">
               {["all", "active", "inactive"].map((f) => (
                 <button
@@ -452,20 +539,34 @@ const AdminLocations = () => {
                     setFilter(f);
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
-                    filter === f
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${filter === f
                       ? "bg-white text-blue-600 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   {f}
                 </button>
               ))}
             </div>
 
+            {/* Reset Filters button if any active */}
+            {(search || filter !== "all" || selectedState !== "all") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setFilter("all");
+                  setSelectedState("all");
+                  setPage(1);
+                }}
+                className="text-xs font-bold text-slate-500 hover:text-blue-600 px-2 py-1"
+              >
+                Reset
+              </button>
+            )}
+
             <button
               onClick={openAddModal}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-blue-500/20 transition-all"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-md shadow-blue-500/20 transition-all"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -478,11 +579,8 @@ const AdminLocations = () => {
 
       {/* Locations Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 space-y-3">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"></div>
-            <p className="text-slate-500 text-xs font-semibold">Loading cities...</p>
-          </div>
+        {loading && locations.length === 0 ? (
+          <LocationTableSkeleton />
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center space-y-3">
             <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
@@ -492,7 +590,9 @@ const AdminLocations = () => {
             </div>
             <p className="text-base font-bold text-slate-900">No cities found</p>
             <p className="text-xs text-slate-500">
-              {search ? "Try adjusting your search query." : "Click 'Add New City' to create your first location."}
+              {search || selectedState !== "all" || filter !== "all"
+                ? "Try adjusting your search query or filters."
+                : "Click 'Add New City' to create your first location."}
             </p>
           </div>
         ) : (
@@ -526,17 +626,15 @@ const AdminLocations = () => {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleToggleActive(loc)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                            loc.isActive
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${loc.isActive
                               ? "bg-green-50 text-green-700 hover:bg-green-100"
                               : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                          }`}
+                            }`}
                           title="Click to toggle Active / Inactive"
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              loc.isActive ? "bg-green-500" : "bg-slate-400"
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${loc.isActive ? "bg-green-500" : "bg-slate-400"
+                              }`}
                           />
                           {loc.isActive ? "Active" : "Inactive"}
                         </button>
@@ -547,6 +645,7 @@ const AdminLocations = () => {
                             to={`/${loc.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onMouseEnter={() => prefetchLocation(loc.slug)}
                             className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
                           >
                             View Page
@@ -587,31 +686,107 @@ const AdminLocations = () => {
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 text-xs font-semibold text-slate-500">
-                <span>
-                  Showing {(page - 1) * itemsPerPage + 1} to{" "}
-                  {Math.min(page * itemsPerPage, filtered.length)} of {filtered.length} cities
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-2 py-1 text-slate-700 font-bold">
-                    Page {page} of {totalPages}
+            {filtered.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-slate-100 bg-white text-xs text-slate-500">
+                <div className="flex flex-wrap items-center gap-4">
+                  <span>
+                    Showing <strong className="text-slate-800 font-bold">{(page - 1) * itemsPerPage + 1}</strong> to{" "}
+                    <strong className="text-slate-800 font-bold">
+                      {Math.min(page * itemsPerPage, filtered.length)}
+                    </strong>{" "}
+                    of <strong className="text-slate-800 font-bold">{filtered.length}</strong> cities
+                    {filtered.length !== locations.length && (
+                      <span className="text-slate-400 ml-1">
+                        (filtered from {locations.length} total)
+                      </span>
+                    )}
                   </span>
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
+
+                  {/* Items per page selector */}
+                  <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
+                    <label htmlFor="perPageSelect" className="text-slate-500 font-medium">Per page:</label>
+                    <select
+                      id="perPageSelect"
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setPage(1);
+                      }}
+                      className="bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-1 font-semibold focus:ring-1 focus:ring-blue-600 focus:outline-none cursor-pointer"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
                 </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    {/* First Page button */}
+                    <button
+                      onClick={() => setPage(1)}
+                      disabled={page === 1}
+                      title="First Page"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Previous button */}
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-slate-600 transition-colors"
+                    >
+                      Prev
+                    </button>
+
+                    {/* Dynamic Page Buttons */}
+                    {getPageNumbers(page, totalPages).map((p, idx) =>
+                      p === "..." ? (
+                        <span key={`dots-${idx}`} className="px-2 py-1 text-slate-400 font-semibold">
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${page === p
+                              ? "bg-blue-600 text-white shadow-sm shadow-blue-500/30"
+                              : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                            }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+
+                    {/* Next button */}
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium text-slate-600 transition-colors"
+                    >
+                      Next
+                    </button>
+
+                    {/* Last Page button */}
+                    <button
+                      onClick={() => setPage(totalPages)}
+                      disabled={page === totalPages}
+                      title="Last Page"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed text-slate-600 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -669,8 +844,8 @@ const AdminLocations = () => {
                     {loadingStates
                       ? "⏳ Loading states from API..."
                       : statesList.length > 0
-                      ? `-- Choose Indian State (${statesList.length} available) --`
-                      : "-- No states returned from API --"}
+                        ? `-- Choose Indian State (${statesList.length} available) --`
+                        : "-- No states returned from API --"}
                   </option>
                   {statesList.map((st) => (
                     <option key={st} value={st}>
